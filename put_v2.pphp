@@ -1,0 +1,453 @@
+<?php
+ header('Access-Control-Allow-Origin: *');
+ include 'conexao.php';
+ include 'adddelimagens.php';
+ 
+ switch($key) {
+  case "adduser":
+   $name=$pdo->quote($json_obj->{'jsondata'}->{'name'});
+   $password=$pdo->quote($json_obj->{'jsondata'}->{'password'});
+   $email=$pdo->quote($json_obj->{'jsondata'}->{'email'});
+   $super=$json_obj->{'jsondata'}->{'super'};
+   //$data=$pdo->quote(now());
+   $sql="INSERT INTO admins(senha,email,super,datacadastro) VALUES($password,$email,$super,now())";
+   
+   try {
+    $qr=$pdo->query($sql);
+    if($qr) {
+     $stmt=$pdo->query("SELECT * FROM admins WHERE email=$email");
+     if($row=$stmt->fetch(PDO::FETCH_OBJ)) {
+      echo json_encode(array('status'=>'success','result'=>$row));
+     }
+    }
+    else
+     echo json_encode(array('status'=>'erro','msg'=>'Problema desconhecido, contate o programador: neiamaralf@athena3d.com.br'));
+   }
+   catch(PDOException $e) {
+    echo json_encode(array('status'=>'erro','msg'=>$e->getMessage()));
+   }
+   break;
+  case "estilos":
+   $op=$json_obj->{'jsondata'}->{'op'};
+   if($op=="adicionar"){
+    $name=$pdo->quote($json_obj->{'jsondata'}->{'name'});
+    $idcategoria=$json_obj->{'jsondata'}->{'idcategoria'};
+    $sql="INSERT INTO estilos(nome,idcategoria) VALUES($name,$idcategoria)";
+    try {
+     $qr=$pdo->query($sql);
+     if($qr) {
+      $stmt=$pdo->query("SELECT * FROM estilos WHERE idcategoria = $idcategoria AND id = (SELECT MAX(ID) FROM estilos WHERE idcategoria = $idcategoria)");
+      
+      if($row=$stmt->fetch(PDO::FETCH_OBJ)) {
+       echo json_encode(array('status'=>'success','key'=>$key,'result'=>$row));
+      }
+     }
+     else
+      echo json_encode(array('status'=>'erro','msg'=>'Problema desconhecido, contate o programador: neiamaralf@athena3d.com.br'));
+    }
+    catch(PDOException $e) {
+     echo json_encode(array('status'=>'erro','msg'=>$e->getMessage()));
+    }
+    
+   }
+   else{
+    $name=$pdo->quote($json_obj->{'jsondata'}->{'name'});
+    $id=$json_obj->{'jsondata'}->{'id'};
+    $sql="UPDATE estilos SET nome=$name WHERE id = $id";
+    try {
+     $qr=$pdo->query($sql);
+     if($qr) {
+      $stmt=$pdo->query("SELECT * FROM estilos WHERE id = $id");
+      
+      if($row=$stmt->fetch(PDO::FETCH_OBJ)) {
+       echo json_encode(array('status'=>'success','key'=>$key,'result'=>$row));
+      }
+     }
+     else
+      echo json_encode(array('status'=>'erro','msg'=>'Problema desconhecido, contate o programador: neiamaralf@athena3d.com.br'));
+    }
+    catch(PDOException $e) {
+     echo json_encode(array('status'=>'erro','msg'=>$e->getMessage()));
+    }
+   }
+   break;
+  case "favoritos":
+   $tipo=$pdo->quote($json_obj->{'jsondata'}->{'tipo'});
+   $idfavorito=$json_obj->{'jsondata'}->{'idfavorito'};
+   $token=$pdo->quote($json_obj->{'jsondata'}->{'token'});
+   $sql="INSERT INTO favoritos(tipo,idfavorito,token) VALUES($tipo,$idfavorito,$token)";
+   try {
+    $qr=$pdo->query($sql);
+    if($qr) {
+     echo json_encode(array('status'=>'success'));
+    }
+    else
+     echo json_encode(array('status'=>'erro','msg'=>'Problema desconhecido, contate o programador: neiamaralf@athena3d.com.br'));
+   }
+   catch(PDOException $e) {
+    echo json_encode(array('status'=>'erro','msg'=>$e->getMessage()));
+   }
+   break;
+  case "artistas":
+   $op=$json_obj->{'jsondata'}->{'op'};
+   $imgbase64=$json_obj->{'jsondata'}->{'imgbase64'};
+   $idadmin=$json_obj->{'jsondata'}->{'idadmin'};
+   if($imgbase64=="")
+    $img='';
+   else
+    $img=$json_obj->{'jsondata'}->{'img'};
+   if($op=="adicionar"){
+    $name=$pdo->quote(urldecode($json_obj->{'jsondata'}->{'name'}));
+    $idcategoria=$json_obj->{'jsondata'}->{'idcategoria'};
+    
+    $sql="INSERT INTO artistas(nome,idcategoria,idadmin,img) VALUES($name,$idcategoria,$idadmin,'$img')";
+    try {
+     $qr=$pdo->query($sql);
+     if($qr) {
+      $stmt=$pdo->query("SELECT * FROM artistas WHERE idcategoria = $idcategoria AND id = (SELECT MAX(ID) FROM artistas WHERE idcategoria = $idcategoria)");
+      if($row=$stmt->fetch(PDO::FETCH_OBJ)) {
+       $row->tipo="artistas";
+       if($img!='')
+        salvaimagem($img,$imgbase64,"artistas",$idadmin,$row->id,75,75,350,350);
+       echo json_encode(array('status'=>'success','key'=>$key,'result'=>$row));
+      }
+     }
+     else
+      echo json_encode(array('status'=>'erro','msg'=>'Problema desconhecido, contate o programador: neiamaralf@athena3d.com.br'));
+    }
+    catch(PDOException $e) {
+     echo json_encode(array('status'=>'erro','msg'=>$e->getMessage()));
+    }
+   }
+   else{
+    $id=$json_obj->{'jsondata'}->{'id'};
+    $name=$pdo->quote($json_obj->{'jsondata'}->{'name'});    
+    if($img!=''){
+     $imgdirpath='./imagens/artistas/'.$idadmin.'/'.$id.'/';
+     deleteDir($imgdirpath);     
+     salvaimagem($img,$imgbase64,"artistas",$idadmin,$id,75,75,350,350);
+     $sql="UPDATE artistas SET img='$img' WHERE id = $id";
+    }
+    else
+     $sql="UPDATE artistas SET nome=$name WHERE id = $id";
+    try {
+     $qr=$pdo->query($sql);
+     if($qr) {
+      $stmt=$pdo->query("SELECT * FROM artistas WHERE id = $id");      
+      if($row=$stmt->fetch(PDO::FETCH_OBJ)) {
+       $row->tipo="artistas";
+       echo json_encode(array('status'=>'success','key'=>$key,'result'=>$row));
+      }
+     }
+     else
+      echo json_encode(array('status'=>'erro','msg'=>'Problema desconhecido, contate o programador: neiamaralf@athena3d.com.br'));
+    }
+    catch(PDOException $e) {
+     echo json_encode(array('status'=>'erro','msg'=>$e->getMessage(),$sql));
+    }
+   }
+   break;
+  case "locais":
+   $op=$json_obj->{'jsondata'}->{'op'};
+   $imgbase64=$json_obj->{'jsondata'}->{'imgbase64'};
+   $idadmin=$json_obj->{'jsondata'}->{'idadmin'};
+   if($imgbase64=="")
+    $img='';
+   else
+    $img=$json_obj->{'jsondata'}->{'img'};
+   if($op=="adicionar"){
+    $nome=$pdo->quote($json_obj->{'jsondata'}->{'nome'});
+    $numero=urldecode($json_obj->{'jsondata'}->{'numero'});
+    $complemento=$pdo->quote($json_obj->{'jsondata'}->{'complemento'});
+    $fone=$pdo->quote($json_obj->{'jsondata'}->{'fone'});
+    $email=$pdo->quote($json_obj->{'jsondata'}->{'email'});
+    $site=$pdo->quote($json_obj->{'jsondata'}->{'site'});
+    $cep=$pdo->quote($json_obj->{'jsondata'}->{'cep'});
+    $logradouro=$pdo->quote($json_obj->{'jsondata'}->{'logradouro'});
+    $bairro=$pdo->quote($json_obj->{'jsondata'}->{'bairro'});
+    $localidade=$pdo->quote($json_obj->{'jsondata'}->{'localidade'});
+    $uf=$pdo->quote($json_obj->{'jsondata'}->{'uf'});
+    $sql="INSERT INTO locais(nome,numero,complemento,fone,email,site,cep,logradouro,bairro,localidade,uf,idadmin,img) VALUES($nome,$numero,$complemento,$fone,$email,$site,$cep,$logradouro,$bairro,$localidade,$uf,$idadmin,'$img')";
+    try {
+     $qr=$pdo->query($sql);
+     if($qr) {
+      $stmt=$pdo->query("SELECT * FROM locais WHERE idadmin = $idadmin AND id = (SELECT MAX(ID) FROM locais WHERE idadmin = $idadmin)");      
+      if($row=$stmt->fetch(PDO::FETCH_OBJ)) {
+       $row->tipo="locais";
+       if($img!='')
+        salvaimagem($img,$imgbase64,"locais",$idadmin,$row->id,75,75,350,350);
+       echo json_encode(array('status'=>'success','key'=>$key,'result'=>$row));
+      }
+     }
+     else
+      echo json_encode(array('status'=>'erro','msg'=>'Problema desconhecido, contate o programador: neiamaralf@athena3d.com.br'));
+    }
+    catch(PDOException $e) {
+     echo json_encode(array('status'=>'erro','msg'=>$e->getMessage()));
+    }    
+   }
+   else{
+    $id=$json_obj->{'jsondata'}->{'id'};
+    $nome=$pdo->quote($json_obj->{'jsondata'}->{'name'});    
+    if($img!=''){
+     $imgdirpath='./imagens/locais/'.$idadmin.'/'.$id.'/';
+     deleteDir($imgdirpath);     
+     salvaimagem($img,$imgbase64,"locais",$idadmin,$id,75,75,350,350);
+     $sql="UPDATE locais SET img='$img' WHERE id = $id";
+    }
+    else
+     $sql="UPDATE locais SET nome=$nome WHERE id = $id";
+    try {
+     $qr=$pdo->query($sql);
+     if($qr) {
+      $stmt=$pdo->query("SELECT * FROM locais WHERE id = $id");
+      
+      if($row=$stmt->fetch(PDO::FETCH_OBJ)) {
+       $row->tipo="locais";
+       echo json_encode(array('status'=>'success','key'=>$key,'result'=>$row));
+      }
+     }
+     else
+      echo json_encode(array('status'=>'erro','msg'=>'Problema desconhecido, contate o programador: neiamaralf@athena3d.com.br'));
+    }
+    catch(PDOException $e) {
+     echo json_encode(array('status'=>'erro','msg'=>$e->getMessage()));
+    }
+   }
+   break;
+  case 'eventos':
+   $op=$json_obj->{'jsondata'}->{'op'};
+   if($op=="adicionar"){
+    $idadmin=$json_obj->{'jsondata'}->{'idadmin'};
+    $idestilo=$json_obj->{'jsondata'}->{'idestilo'};
+    $idartista=$json_obj->{'jsondata'}->{'idartista'};
+    $idcategoria=$json_obj->{'jsondata'}->{'idcategoria'};
+    $idlocal=$json_obj->{'jsondata'}->{'idlocal'};
+    $datahorario=$pdo->quote($json_obj->{'jsondata'}->{'datahorario'});
+    $datafim=$pdo->quote($json_obj->{'jsondata'}->{'datafim'});
+    $nome=$pdo->quote($json_obj->{'jsondata'}->{'nome'});
+    $descricao=$pdo->quote(urldecode($json_obj->{'jsondata'}->{'descricao'}));
+    $horarios=json_decode($json_obj->{'jsondata'}->{'horarios'});
+    $locais=json_decode($json_obj->{'jsondata'}->{'locais'});
+    $infosobre=json_decode($json_obj->{'jsondata'}->{'infosobre'});
+    $imgbase64=$json_obj->{'jsondata'}->{'imgbase64'};
+    if($imgbase64=="")
+     $img='';
+    else
+     $img=$json_obj->{'jsondata'}->{'img'};
+    $sql="INSERT INTO eventos(idadmin,idestilo,idartista,idcategoria,idlocal,datahorario,datafim,nome,descricao,img) VALUES($idadmin,$idestilo,$idartista,$idcategoria,$idlocal,$datahorario,$datafim,$nome,$descricao,'$img')";
+    try {
+     $qr=$pdo->query($sql);
+     if($qr) {
+      $stmt=$pdo->query("SELECT * FROM eventos WHERE idadmin = $idadmin AND id = (SELECT MAX(ID) FROM eventos WHERE idadmin = $idadmin)");
+      if($row=$stmt->fetch(PDO::FETCH_OBJ)) {
+       if($img!='')
+        salvaimagem($img,$imgbase64,"eventos",$idadmin,$row->id,75,120,330,525);
+       if(count($infosobre)>0){
+        foreach($infosobre as $sobre){
+         $_titulo=$pdo->quote($sobre->{'titulo'});
+         $_descricao=$pdo->quote($sobre->{'descricao'});
+         $qr=$pdo->query("INSERT INTO sobre(idevento,titulo,descricao) VALUES($row->id,$_titulo,$_descricao)");
+        }
+       }
+       if(count($locais)>0){
+        foreach($locais as $local){
+         $idlocal=$local->{'local'}->{'row'}->{'id'};
+         $qr=$pdo->query("INSERT INTO locaisevento(idlocal,idevento) VALUES($idlocal,$row->id)");
+         if($qr) {
+          $stmt = $pdo->query("SELECT MAX(id) AS idlocalevento FROM locaisevento");
+          $rfetch = $stmt -> fetch(PDO::FETCH_ASSOC);
+          $idlocalevento = $rfetch[idlocalevento];
+          foreach($local->{'datas'} as $data){
+           $datastr=$pdo->quote($data->{'data'});
+           $qr=$pdo->query("INSERT INTO dataslocal(idlocalevento,data) VALUES($idlocalevento,$datastr)");
+           if($qr) {
+            $stmt = $pdo->query("SELECT MAX(id) AS iddatalocal FROM dataslocal");
+            $rfetch = $stmt -> fetch(PDO::FETCH_ASSOC);
+            $iddata = $rfetch[iddatalocal];
+            foreach($data->{'horarios'} as $horario){
+             $time=$pdo->quote($horario->{'time'});
+             $timeend=$pdo->quote($horario->{'timeend'});
+             $sala=$pdo->quote($horario->{'sala'});
+             $tipofilme=$pdo->quote($horario->{'tipofilme'});
+             $qr=$pdo->query("INSERT INTO horariosdata(iddata,horarioini,horariofim,sala,tipofilme) VALUES($iddata,$time,$timeend,$sala,$tipofilme)");
+             
+            }
+           }
+          }
+         }
+        }
+       }
+       if(count($horarios)>0){
+        $sql="INSERT INTO horarioseventos(idevento,time,timeend,sala) VALUES ";
+        $i=0;
+        $stmt = $pdo->query("SELECT MAX(id) AS idevento FROM eventos");
+        $invNum = $stmt -> fetch(PDO::FETCH_ASSOC);
+        $idevento = $invNum[idevento];
+        foreach($horarios as $horario){
+         $time=$pdo->quote($horario->{'time'});
+         $timeend=$pdo->quote($horario->{'timeend'});
+         $sala=$pdo->quote($horario->{'sala'});
+         $sql=$sql."($idevento,$time,$timeend,$sala)";
+         $i++;
+         if($i<count($horarios))$sql=$sql.",";
+        }
+        $qr=$pdo->query($sql);
+       }
+       echo json_encode(array('status'=>'success','key'=>$key,'result'=>$row));
+      }
+     }
+     else
+      echo json_encode(array('status'=>'erro','msg'=>'Problema desconhecido, contate o programador: neiamaralf@athena3d.com.br'));
+    }
+    catch(PDOException $e) {
+     echo json_encode(array('status'=>'erro','msg'=>$e->getMessage()));
+    }
+   }
+   else{
+    $campo=$json_obj->{'jsondata'}->{'campo'};
+    $id=$json_obj->{'jsondata'}->{'id'};
+    $idadmin=$json_obj->{'jsondata'}->{'idadmin'};
+    $valor=$json_obj->{'jsondata'}->{'valor'};
+    $oldvalor=$json_obj->{'jsondata'}->{'oldvalor'};
+    $locais=json_decode($json_obj->{'jsondata'}->{'locais'});
+    $sql="";
+    switch ($campo) {
+     case "imagem":
+      if($oldvalor!='null'){
+       $imgdirpath='./imagens/eventos/'.$idadmin.'/'.$id.'/';
+       deleteDir($imgdirpath);
+      }
+      
+      $imgbase64=$json_obj->{'jsondata'}->{'imgbase64'};
+      if($imgbase64=="")
+       $img='';
+      else
+       $img=$valor;
+      salvaimagem($img,$imgbase64,"eventos",$idadmin,$id,75,120,330,525);
+      $sql="UPDATE eventos SET img='$img' WHERE id = $id";
+      break;
+     case "nome":
+     case "descricao":
+      $valor=$pdo->quote($json_obj->{'jsondata'}->{'valor'});
+      $sql="UPDATE eventos SET $campo=$valor WHERE id = $id";
+      break;
+     case "local":
+      $sql="SELECT id FROM locaisevento WHERE idevento=$id";
+      $stmti=$pdo->query($sql);
+      while($row=$stmti->fetch(PDO::FETCH_OBJ)){
+       $idlocalevento=$row->id;
+       $sql="SELECT id FROM dataslocal WHERE idlocalevento=$idlocalevento";
+       $stmtii=$pdo->query($sql);
+       while($rowi=$stmtii->fetch(PDO::FETCH_OBJ)){
+        $iddata=$rowi->id;
+        $sql="DELETE FROM horariosdata WHERE iddata=$iddata";
+        $pdo->query($sql);
+       }
+       $sql="DELETE FROM dataslocal WHERE idlocalevento=$idlocalevento";
+       $pdo->query($sql);
+      }
+      $sql="DELETE FROM locaisevento WHERE idevento=$id";
+      $pdo->query($sql);
+      $sql="SELECT * FROM eventos WHERE id = $id";
+      if(count($locais)>0){
+       foreach($locais as $local){
+        $idlocal=$local->{'local'}->{'row'}->{'id'};
+        $qr=$pdo->query("INSERT INTO locaisevento(idlocal,idevento) VALUES($idlocal,$id)");        
+        if($qr) {
+         $stmt = $pdo->query("SELECT MAX(id) AS idlocalevento FROM locaisevento");
+         $rfetch = $stmt -> fetch(PDO::FETCH_ASSOC);
+         $idlocalevento = $rfetch[idlocalevento];
+         foreach($local->{'datas'} as $data){
+          $datastr=$pdo->quote($data->{'data'});
+          $qr=$pdo->query("INSERT INTO dataslocal(idlocalevento,data) VALUES($idlocalevento,$datastr)");
+          if($qr) {
+           $stmt = $pdo->query("SELECT MAX(id) AS iddatalocal FROM dataslocal");
+           $rfetch = $stmt -> fetch(PDO::FETCH_ASSOC);
+           $iddata = $rfetch[iddatalocal];
+           foreach($data->{'horarios'} as $horario){
+            $time=$pdo->quote($horario->{'time'});
+            $timeend=$pdo->quote($horario->{'timeend'});
+            $sala=$pdo->quote($horario->{'sala'});
+            $tipofilme=$pdo->quote($horario->{'tipofilme'});
+            $qr=$pdo->query("INSERT INTO horariosdata(iddata,horarioini,horariofim,sala,tipofilme) VALUES($iddata,$time,$timeend,$sala,$tipofilme)");
+           }
+          }
+         }
+        }
+       }
+      }
+     break;
+     case "estilo":
+     case "artista":
+      $idcampo=$valor->{'row'}->{'id'};
+      $sql="UPDATE eventos SET id$campo=$idcampo WHERE id = $id";
+      break;
+     case "data":
+      $data=$valor->{'data'};
+      $datafim=$valor->{'datafim'};
+      $sql="";
+      $isql="SELECT datahorario,datafim FROM eventos  WHERE  id=$id";
+      try {
+       $qr=$pdo->query($isql);
+       if($qr) {
+        if($row=$qr->fetch(PDO::FETCH_OBJ)){
+         $row->datahorario=substr_replace($row->datahorario, $data, 0, 10);
+         $row->datafim=substr_replace($row->datafim, $datafim, 0, 10);
+         $sql="UPDATE eventos SET datahorario='$row->datahorario',datafim='$row->datafim' WHERE id = $id";
+         //echo json_encode(array('status'=>'success','key'=>$key,'result'=>$row));
+         // echo $sql;
+        }
+       }
+       else
+        echo json_encode(array('status'=>'erro','msg'=>'Problema desconhecido, contate o programador: neiamaralf@athena3d.com.br'));
+      }
+      catch(PDOException $e) {
+       echo json_encode(array('status'=>'erro','msg'=>$e->getMessage()));
+      }
+      break;
+     case "horario":
+      $hora=$valor->{'hora'}+":"+$valor->{'minutos'}+":00";
+      $horafim=$valor->{'horafim'}+":"+$valor->{'minutosfim'}+":00";
+      $sql="";
+      $isql="SELECT datahorario,datafim FROM eventos  WHERE  id=$id";
+      try {
+       $qr=$pdo->query($isql);
+       if($qr) {
+        if($row=$qr->fetch(PDO::FETCH_OBJ)){
+         $row->datahorario=substr_replace($row->datahorario, $hora, 11, 8);
+         $row->datafim=substr_replace($row->datafim, $horafim, 11, 8);
+         $sql="UPDATE eventos SET datahorario='$row->datahorario',datafim='$row->datafim' WHERE id = $id";
+         //echo $sql;
+         //echo json_encode(array('status'=>'success','key'=>$key,'result'=>$row));
+        }
+       }
+       else
+        echo json_encode(array('status'=>'erro','msg'=>'Problema desconhecido, contate o programador: neiamaralf@athena3d.com.br'));
+      }
+      catch(PDOException $e) {
+       echo json_encode(array('status'=>'erro','msg'=>$e->getMessage()));
+      }
+      break;
+    }
+    try {
+     $qr=$pdo->query($sql);
+     if($qr) {
+      $stmt=$pdo->query("SELECT * FROM eventos WHERE id = $id");
+      if($row=$stmt->fetch(PDO::FETCH_OBJ))
+       echo json_encode(array('status'=>'success','key'=>$key,'result'=>$row));
+     }
+     else
+      echo json_encode(array('status'=>'erro','msg'=>'Problema desconhecido, contate o programador: neiamaralf@athena3d.com.br'));
+    }
+    catch(PDOException $e) {
+     echo json_encode(array('status'=>'erro','msg'=>$e->getMessage()));
+    }
+    //echo json_encode(array('status'=>'ok','msg'=>$valor));
+   }
+   break;
+ }
+ ?>
+
+
+
